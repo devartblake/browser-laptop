@@ -38,7 +38,6 @@ const autofill = require('../../app/autofill')
 const basicAuthState = require('../../app/common/state/basicAuthState')
 const extensionState = require('../../app/common/state/extensionState')
 const tabState = require('../../app/common/state/tabState')
-const aboutNewTabState = require('../../app/common/state/aboutNewTabState')
 const isDarwin = process.platform === 'darwin'
 const isWindows = process.platform === 'win32'
 
@@ -234,8 +233,6 @@ const createWindow = (browserOpts, defaults, frameOpts, windowState) => {
   })
 
   LocalShortcuts.register(mainWindow)
-
-  mainWindow.loadURL(appUrlUtil.getIndexHTML())
   return mainWindow
 }
 
@@ -288,6 +285,7 @@ function windowDefaults () {
     windowOffset: 20,
     webPreferences: {
       sharedWorker: true,
+      nodeIntegration: false,
       partition: 'default',
       allowFileAccessFromFileUrls: true,
       allowUniversalAccessFromFileUrls: true
@@ -382,10 +380,15 @@ const handleAppAction = (action) => {
         if (action.cb) {
           action.cb()
         }
+        mainWindow.show()
+        mainWindow.webContents.openDevTools()
       })
+
       mainWindow.webContents.on('crashed', (e) => {
         console.error('Window crashed. Reloading...')
-        mainWindow.loadURL(appUrlUtil.getIndexHTML())
+        // setTimeout(() => {
+        //   mainWindow.loadURL(appUrlUtil.getIndexHTML())
+        // }, 1000)
 
         ipcMain.on(messages.NOTIFICATION_RESPONSE, function notificationResponseCallback (e, message, buttonIndex, persist) {
           if (message === locale.translation('unexpectedErrorWindowReload')) {
@@ -405,7 +408,6 @@ const handleAppAction = (action) => {
         })
       })
       mainWindow.loadURL(appUrlUtil.getIndexHTML())
-      mainWindow.show()
       break
     case AppConstants.APP_CLOSE_WINDOW:
       const appWindow = BrowserWindow.fromId(action.appWindowId)
@@ -430,7 +432,7 @@ const handleAppAction = (action) => {
       appState = appState.set('passwords', new Immutable.List())
       break
     case AppConstants.APP_CHANGE_NEW_TAB_DETAIL:
-      appState = aboutNewTabState.mergeDetails(appState, action)
+      appState = appState.setIn(['about', 'newtab'], action.newTabPageDetail)
       break
     case AppConstants.APP_ADD_SITE:
       const oldSiteSize = appState.get('sites').size
@@ -448,11 +450,9 @@ const handleAppAction = (action) => {
       if (oldSiteSize !== appState.get('sites').size) {
         filterOutNonRecents()
       }
-      appState = aboutNewTabState.addSite(appState, action)
       break
     case AppConstants.APP_REMOVE_SITE:
       appState = appState.set('sites', siteUtil.removeSite(appState.get('sites'), action.siteDetail, action.tag))
-      appState = aboutNewTabState.removeSite(appState, action)
       break
     case AppConstants.APP_MOVE_SITE:
       appState = appState.set('sites', siteUtil.moveSite(appState.get('sites'), action.sourceDetail, action.destinationDetail, action.prepend, action.destinationIsParent, false))
@@ -719,16 +719,6 @@ const handleAppAction = (action) => {
     case ExtensionConstants.EXTENSION_DISABLED:
       appState = extensionState.extensionDisabled(appState, action)
       break
-    case ExtensionConstants.CONTEXT_MENU_CREATED:
-      appState = extensionState.contextMenuCreated(appState, action)
-      break
-    case ExtensionConstants.CONTEXT_MENU_ALL_REMOVED:
-      appState = extensionState.contextMenuAllRemoved(appState, action)
-      break
-    case ExtensionConstants.CONTEXT_MENU_CLICKED:
-      process.emit('chrome-context-menus-clicked',
-        action.extensionId, action.tabId, action.info.toJS())
-      break
     case AppConstants.APP_SET_MENUBAR_TEMPLATE:
       appState = appState.setIn(['menu', 'template'], action.menubarTemplate)
       break
@@ -772,15 +762,6 @@ const handleAppAction = (action) => {
       break
     case AppConstants.APP_DEFAULT_BROWSER_CHECK_COMPLETE:
       appState = appState.set('defaultBrowserCheckComplete', {})
-      break
-    case WindowConstants.WINDOW_SET_FAVICON:
-      appState = appState.set('sites', siteUtil.updateSiteFavicon(appState.get('sites'), action.frameProps.get('location'), action.favicon))
-      appState = aboutNewTabState.updateSiteFavicon(appState, action)
-      break
-    case WindowConstants.WINDOW_SET_NAVIGATED:
-      if (!action.isNavigatedInPage) {
-        appState = extensionState.browserActionUpdated(appState, action)
-      }
       break
     default:
   }

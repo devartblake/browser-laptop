@@ -17,7 +17,7 @@ const siteUtil = require('../state/siteUtil')
 const {makeImmutable} = require('../../app/common/state/immutableUtil')
 const historyUtil = require('../../app/common/lib/historyUtil')
 
-const ipc = window.chrome.ipc
+const ipc = window.chrome.ipcRenderer
 
 // Stylesheets
 require('../../less/about/history.less')

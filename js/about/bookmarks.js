@@ -16,7 +16,7 @@ const SortableTable = require('../components/sortableTable')
 const siteUtil = require('../state/siteUtil')
 const iconSize = require('../../app/common/lib/faviconUtil').iconSize
 
-const ipc = window.chrome.ipc
+const ipc = window.chrome.ipcRenderer
 
 // Stylesheets
 require('../../less/about/bookmarks.less')
